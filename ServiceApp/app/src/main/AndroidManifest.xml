@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="saarland.cispa.trust.serviceapp">
+
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+
+    <permission android:name="saarland.cispa.trust.permission.BIND_TO_SERVICE"
+        android:protectionLevel="signature" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <provider
+            android:name=".Provider"
+            android:authorities="saarland.cispa.trust.serviceapp.contentprovider"
+            android:enabled="true"
+            android:exported="true"/>
+
+        <service
+            android:name=".RemoteService"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="saarland.cispa.trust.intent.service.REMOTE_SERVICE" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".Receiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="saarland.cispa.trust.intent.action.NEW_ITEM_BROADCAST" />
+            </intent-filter>
+        </receiver>
+
+        <activity android:name=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

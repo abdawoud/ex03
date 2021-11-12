@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">CISPABay</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_add_item">Add Item</string>
+    <string name="nav_user">My Account</string>
+    <string name="add_picture">Add Picture</string>
+    <string name="description_hint">Description*</string>
+    <string name="title_hint">Title*</string>
+    <string name="price_hint">Price*</string>
+    <string name="add_new_item">Add New Item</string>
+    <string name="mapbox_access_token">pk.eyJ1IjoiYWJkYXdvdWQiLCJhIjoiY2toa2NweDM1MTk1ZDJ4cDZkOGVxM3VodyJ9.5KnqCtjBLBIxVeunRvwRCw</string>
+</resources>
