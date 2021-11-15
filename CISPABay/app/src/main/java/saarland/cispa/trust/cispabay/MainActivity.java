@@ -2,10 +2,13 @@ package saarland.cispa.trust.cispabay;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentTransaction;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.ComponentName;
 import android.content.ContentProviderClient;
@@ -13,8 +16,10 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Location;
+import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -34,6 +39,8 @@ public class MainActivity extends AppCompatActivity {
 
     IRemoteService mIRemoteService;
     BottomNavigationView bottomNavigation;
+    final int PERMISSION_LOCATION_CODE = 1000;
+    final int PERMISSION_CAMERA_CODE = 1001;
 
     // BottomNavigation handler
     @SuppressLint("NonConstantResourceId")
@@ -145,33 +152,92 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
+        // Check the response status code and interpret the results based on
+        // how you requested the permission(s)
+        switch (requestCode) {
+            case PERMISSION_LOCATION_CODE:
+                if (grantResults.length > 0 &&
+                        grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this,
+                            "ACCESS_FINE_LOCATION permission is granted",
+                            Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(this,
+                            "ACCESS_FINE_LOCATION permission is denied",
+                            Toast.LENGTH_LONG).show();
+                }
+                break;
+            case PERMISSION_CAMERA_CODE:
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this,
+                            "The CAMERA permissions is granted.",
+                            Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(this,
+                            "The CAMERA permission is denied.",
+                            Toast.LENGTH_LONG).show();
+                }
+                break;
+        }
     }
 
     /**
      * Uses the Location Service to retrieve the last known location using one of the available
      *  providers: LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, etc..
      *  see https://developer.android.com/reference/android/location/LocationManager.html#getLastKnownLocation(java.lang.String)
-     *  Notice that this API (getLastKnownLocation) assumes that a last location exists, otherwise,
-     *  it will return null object. To circumvent this, you can either fake a location in the
-     *  emulator (see https://developer.android.com/studio/run/emulator-console#geo) or request
-     *  location updates to set lastKnownLocation global object (see https://developer.android.com/reference/android/location/LocationManager.html#requestLocationUpdates(java.lang.String,%20long,%20float,%20android.location.LocationListener))
+     *
      * @return Location
      */
     public Location getLastKnownLocation() {
-        return null;
+        String locationPermission = Manifest.permission.ACCESS_FINE_LOCATION;
+        String[] requiredPermissions = new String[]{
+                locationPermission
+        };
+
+        LocationManager locationManager = (LocationManager)
+                this.getSystemService(Context.LOCATION_SERVICE);
+
+        if (ContextCompat.checkSelfPermission(this,
+                locationPermission) == PackageManager.PERMISSION_GRANTED) {
+            return locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        } else {
+            ActivityCompat.requestPermissions(this, requiredPermissions,
+                    PERMISSION_LOCATION_CODE);
+            return null;
+        }
     }
 
     /**
-     * Checks for two permissions: Manifest.permission.CAMERA and Manifest.permission.WRITE_EXTERNAL_STORAGE
-     *  and returns true if both are granted, false otherwise
+     * Checks for the permission: Manifest.permission.CAMERA and returns true if the permission is
+     * granted, false otherwise
      *
      * @return boolean
      */
-    public boolean hasPermissionToTakePhotoAndStoreInExternalStorage() {
-        return false;
+    public boolean hasPermissionToTakePhoto() {
+        String cameraPermission = Manifest.permission.CAMERA;
+        String[] requiredPermissions = new String[]{
+                cameraPermission
+        };
+
+        if (ContextCompat.checkSelfPermission(this, cameraPermission) == PackageManager.PERMISSION_GRANTED) {
+            return true;
+        } else {
+            ActivityCompat.requestPermissions(this, requiredPermissions,
+                    PERMISSION_CAMERA_CODE);
+            return false;
+        }
     }
 
-    public static void sendNewItemNotification(MainActivity parentActivity, int itemId) {}
+    public static void sendNewItemNotification(MainActivity parentActivity, int itemId) {
+        Intent intent = new Intent("saarland.cispa.trust.intent.action.NEW_ITEM_BROADCAST");
+        intent.setComponent(new ComponentName("saarland.cispa.trust.serviceapp",
+                "saarland.cispa.trust.serviceapp.Receiver"));
+        Bundle data = new Bundle();
+        data.putInt("_id", itemId);
+        intent.putExtras(data);
+        parentActivity.sendBroadcast(intent);
+    }
 
     /**
      * Inserts two dump items so the list view won't be empty

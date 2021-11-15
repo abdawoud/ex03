@@ -44,4 +44,5 @@ dependencies {
         transitive = true
     }
     implementation 'com.mapbox.mapboxsdk:mapbox-android-plugin-traffic:0.3.0'
+    implementation 'com.mapbox.mapboxsdk:mapbox-android-telemetry:6.1.0'
 }

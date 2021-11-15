@@ -1,8 +1,6 @@
 package saarland.cispa.trust.cispabay.fragments;
 
-import android.annotation.SuppressLint;
 import android.content.ContentProviderClient;
-import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.location.Location;
@@ -10,6 +8,7 @@ import android.net.Uri;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.FileProvider;
 import androidx.core.content.res.ResourcesCompat;
 import androidx.fragment.app.Fragment;
 
@@ -26,6 +25,7 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Objects;
@@ -35,7 +35,7 @@ import saarland.cispa.trust.cispabay.R;
 
 public class AddItemFragment extends Fragment {
     private ImageView imageView;
-    private Uri fileUri = null;
+    private Uri photoURI = null;
     private final int RESULT_OK = 200;
     private final MainActivity parentActivity;
 
@@ -74,6 +74,7 @@ public class AddItemFragment extends Fragment {
                     return;
 
                 int itemId = addNewItem(titleInput, descriptionInput, priceInput);
+
                 if (itemId > -1) {
                     MainActivity.openFragment(Objects.requireNonNull(AddItemFragment.this.getActivity()),
                             new HomeFragment(parentActivity));
@@ -100,8 +101,27 @@ public class AddItemFragment extends Fragment {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == RESULT_OK) {
-            imageView.setImageURI(fileUri);
+            imageView.setImageURI(photoURI);
         }
+    }
+
+    /**
+     * Creates a file in the external storage and returns it
+     *
+     * @return File
+     */
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",   /* suffix */
+                storageDir      /* directory */
+        );
+
+        return image;
     }
 
     /**
@@ -109,36 +129,30 @@ public class AddItemFragment extends Fragment {
      * see https://developer.android.com/training/basics/intents/result
      */
     private void takePicture() {
-        boolean hasPermission = parentActivity.hasPermissionToTakePhotoAndStoreInExternalStorage();
+        boolean hasPermission = parentActivity.hasPermissionToTakePhoto();
         if (hasPermission) {
-            Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-            fileUri = Uri.fromFile(getOutputMediaFile());
-            intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
+            Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            // Ensure that there's a camera activity to handle the intent
+            if (takePictureIntent.resolveActivity(getContext().getPackageManager()) != null) {
+                // Create the File where the photo should go
+                File photoFile = null;
+                try {
+                    photoFile = createImageFile();
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
 
-            startActivityForResult(intent, RESULT_OK);
-        }
-    }
-
-
-    /**
-     * Creates a file in the external storage and returns it
-     *
-     * @return File
-     */
-    private File getOutputMediaFile(){
-        File mediaStorageDir = new File(parentActivity.getExternalFilesDir(
-                Environment.DIRECTORY_PICTURES), "CISPABay");
-
-        if (!mediaStorageDir.exists()){
-            if (!mediaStorageDir.mkdirs()){
-                return null;
+                // Continue only if the File was successfully created
+                if (photoFile != null) {
+                    photoURI = FileProvider.getUriForFile(getContext(),
+                            "saarland.cispa.trust.cispabay.file_provider",
+                            photoFile);
+                    takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                    startActivityForResult(takePictureIntent, RESULT_OK);
+                }
             }
-        }
 
-        @SuppressLint("SimpleDateFormat")
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        return new File(mediaStorageDir.getPath() + File.separator +
-                "IMG_"+ timeStamp + ".jpg");
+        }
     }
 
     /**
@@ -161,7 +175,7 @@ public class AddItemFragment extends Fragment {
                     Toast.LENGTH_LONG).show();
             return false;
         }
-        if (fileUri == null) {
+        if (photoURI == null) {
             Toast.makeText(this.getActivity(),
                     "Please, add a picture to this item before submitting it.",
                     Toast.LENGTH_LONG).show();
@@ -181,19 +195,21 @@ public class AddItemFragment extends Fragment {
      */
     private int addNewItem(EditText titleInput, EditText descriptionInput, EditText priceInput) {
         Uri contentProviderUri = Uri.parse("content://saarland.cispa.trust.serviceapp.contentprovider/items");
-        ContentResolver contentResolver = parentActivity.getContentResolver();
-        if (contentResolver == null)
+        ContentProviderClient cp = parentActivity.getContentResolver().acquireContentProviderClient(
+                contentProviderUri);
+        if (cp == null)
             return -1;
-        @SuppressLint("Recycle") ContentProviderClient cp = contentResolver.acquireContentProviderClient(contentProviderUri);
 
         String title = titleInput.getText().toString();
         String description = descriptionInput.getText().toString();
-        String imagePath = fileUri.getPath();
+        String imagePath = photoURI.toString();
         int price = Integer.parseInt(priceInput.getText().toString());
 
         Location location = parentActivity.getLastKnownLocation();
         if (location == null) {
-            return -1;
+            location = new Location("");
+            location.setLatitude(0.0d);
+            location.setLongitude(0.0d);
         }
 
         Uri newItem;
@@ -212,7 +228,7 @@ public class AddItemFragment extends Fragment {
                     "Something went wrong while inserting the item",
                     Toast.LENGTH_LONG).show();
             e.printStackTrace();
-            return -1;
+            return -3;
         }
         return Integer.parseInt(Objects.requireNonNull(newItem).getLastPathSegment());
     }
