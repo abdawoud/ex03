@@ -1,7 +1,7 @@
 .DS_Stoxyre
 CISPABay/.idea
-#ServiceApp/.idea
-#SocialMediaApp/.idea
+ServiceApp/.idea
+SocialMediaApp/.idea
 # Built application files
 *.apk
 *.aar
